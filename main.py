@@ -25,6 +25,7 @@ def main():
 
     results_list = []
     # Use recursion to retrieve tweets until no more are returned
+    # TODO: Retrieve last tweet ID from database and use to retrieve only newer tweets
     results_list = get_search_results(query, api, geocode="44.5071129,-111.1972906,150mi", result_type="recent",
                                       count=100, tweet_mode="extended", max_id=None)
 
@@ -74,7 +75,7 @@ def get_search_results(query: str, api: tweepy.api, **kwargs: Any) -> list:
         try:
             results = api.search(query, **kwargs)
 
-            # Need to handle rate limit here
+            # TODO: Handle rate limit here
         except:
             logging.exception(f"An exception has occurred. Retrying... {i}", extra={'Retry': i})
             time.sleep(5 + (i * 5))
