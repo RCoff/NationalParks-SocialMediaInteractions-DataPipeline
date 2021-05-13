@@ -1,4 +1,6 @@
+__pycache__/
 venv/
 .idea/
 config.py
 *.log
+*.db
