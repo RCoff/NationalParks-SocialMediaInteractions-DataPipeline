@@ -23,11 +23,19 @@ def main():
     conn = sqlite3.connect("Yellowstone.db")
     df = pd.read_sql("SELECT * FROM Tweets", con=conn)
 
+    try:
+        since_id = df['tweet_id'].max()
+        if not since_id:
+            since_id = None
+    except:
+        since_id = None
+
+    # since_id = None
     results_list = []
     # Use recursion to retrieve tweets until no more are returned
     # TODO: Retrieve last tweet ID from database and use to retrieve only newer tweets
     results_list = get_search_results(query, api, geocode="44.5071129,-111.1972906,150mi", result_type="recent",
-                                      count=100, tweet_mode="extended", max_id=None)
+                                      count=100, tweet_mode="extended", max_id=None, since_id=since_id)
 
     # results = api.search(query, geocode="44.5071129,-111.1972906,150mi", result_type="recent", count=100,
     #                      tweet_mode="extended", max_id=None)
@@ -63,10 +71,13 @@ def main():
             conn.commit()
             rows_added_counter += 1
 
+    print(rows_added_counter)
     logging.info("Operation Completed", extra={'Rows_Added': rows_added_counter})
 
 
 def get_search_results(query: str, api: tweepy.api, **kwargs: Any) -> list:
+    if kwargs['since_id'] and kwargs['max_id']:
+        raise AttributeError("since_id and max_id were both specified. Only one may be specified.")
 
     # results: Any = None
     results_list: list = []
@@ -87,9 +98,14 @@ def get_search_results(query: str, api: tweepy.api, **kwargs: Any) -> list:
 
     results_list = [result for result in results]
 
-    if results.max_id:
+    if kwargs['since_id'] and results.since_id:
+        kwargs['since_id'] = results.since_id
+    elif kwargs['max_id'] and results.max_id:
         kwargs['max_id'] = results.max_id
-        results_list.extend(get_search_results(query, api, **kwargs))
+    else:
+        return results_list
+
+    results_list.extend(get_search_results(query, api, **kwargs))
 
     return results_list
 
