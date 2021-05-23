@@ -6,6 +6,7 @@ import logging
 import sqlite3
 from typing import Any
 import time
+from datetime import datetime
 
 import config
 
@@ -30,10 +31,9 @@ def main():
     except:
         since_id = None
 
-    # since_id = None
+    since_id = None
     results_list = []
     # Use recursion to retrieve tweets until no more are returned
-    # TODO: Retrieve last tweet ID from database and use to retrieve only newer tweets
     results_list = get_search_results(query, api, geocode="44.5071129,-111.1972906,150mi", result_type="recent",
                                       count=100, tweet_mode="extended", max_id=None, since_id=since_id)
 
@@ -66,8 +66,25 @@ def main():
                 tweet.source_url,
                 tweet.created_at
             )
-
             conn.execute(query, values)
+
+            user_query = """
+                INSERT INTO TwitterUsers (id, handle, account_created, description, location, created_datetime)
+                SELECT ?, ?, ?, ?, ?, ?
+                WHERE NOT EXISTS (SELECT 1 FROM TwitterUsers WHERE id = ?)
+            """
+
+            values = (
+                tweet.user.id,
+                tweet.user.screen_name,
+                datetime(tweet.user.created_at.year, tweet.user.created_at.month, tweet.user.created_at.day),
+                tweet.user.description,
+                tweet.user.location,
+                datetime.now(),
+                tweet.user.id
+            )
+            conn.execute(user_query, values)
+
             conn.commit()
             rows_added_counter += 1
 
@@ -111,7 +128,9 @@ def get_search_results(query: str, api: tweepy.api, **kwargs: Any) -> list:
 
 
 def setup_logging():
-    logging.basicConfig(filename='log.log', level=logging.DEBUG)
+    logging.basicConfig(level=logging.DEBUG,
+                        handlers=[logging.StreamHandler(),
+                                  logging.FileHandler(filename='log.log')])
 
 
 def setup_database():
@@ -128,6 +147,19 @@ def setup_database():
             created_datetime TEXT DEFAULT NULL
         )
     """)
+
+    # conn.execute("""DROP TABLE IF EXISTS TwitterUsers""")
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS TwitterUsers (
+            id INTEGER PRIMARY KEY,
+            handle TEXT DEFAULT NULL,
+            account_created DATETIME DEFAULT NULL,
+            description TEXT DEFAULT NULL,
+            followers INTEGER DEFAULT NULL,
+            location TEXT DEFAULT NULL,
+            created_datetime DATETIME DEFAULT NULL
+        )""")
 
     conn.commit()
 
